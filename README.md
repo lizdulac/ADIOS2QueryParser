@@ -5,7 +5,7 @@ Use Makefile to build  `testQuery` executable. Examples are defined and passed t
 
 ### Sample
 
-input: "(V/X < -10 or 0 <=V/Y < 5.03 )and (temp/^ != 0 or rad/% == 100) "
+input: `"(V/X < -10 or 0 <=V/Y < 5.03 )and (temp/^ != 0 or rad/% == 100) "`
 
 output:
 ```
