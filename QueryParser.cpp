@@ -96,20 +96,9 @@ void QueryParser::addChild(adios2::query::QueryBase* child)
   else if (dynamic_cast<adios2::query::QueryComposite*>(parent))
     {
       parent->Print("    "); // debugging
-      /*
-      if (dynamic_cast<adios2::query::QueryComposite*>(parent)->m_Nodes.size() < 2)
-	{
-      */
-	  dynamic_cast<adios2::query::QueryComposite*>(parent)->AddNode(child);
-	  std::cout << " post-child root:" << std::endl;
-	  stack.top()->Print("    "); // debugging
-	  /*
-	}
-      else
-	{
-	  // error
-	}
-	  */
+      dynamic_cast<adios2::query::QueryComposite*>(parent)->AddNode(child);
+      std::cout << " post-child root:" << std::endl;
+      stack.top()->Print("    "); // debugging
     }
   else
     {
@@ -123,6 +112,11 @@ void QueryParser::parse(std::string strQuery)
   currString = strQuery;
   IgnoreSpaces();
   std::cout << "Parsing currString \"" << currString << "\"" << std::endl;
+  std::cout << "Current stack top: ";
+  if (stack.top())
+    stack.top()->Print("");
+  else
+    std::cout << "(is nullptr)" << std::endl;
 
   if (IsLParen())
     {
@@ -142,9 +136,13 @@ void QueryParser::parse(std::string strQuery)
 	  stack.pop();
 	  QueryParser::addChild(child);
 	}
+      else if (stack.top())
+	{
+	  stack.push(nullptr);
+	}
       else
 	{
-	  // error
+	  // error?
 	}
     }
 
@@ -171,8 +169,59 @@ void QueryParser::parse(std::string strQuery)
     {
       std::cout << "Is Relation" << std::endl;
       adios2::query::Relation rel = GetRelation();
-      adios2::query::QueryComposite *node = new adios2::query::QueryComposite(rel);
-      QueryParser::rotate(node);
+      // check for precedence
+      adios2::query::QueryBase *parent = stack.top();
+      if (!parent)
+	{
+	  stack.pop();
+	  parent = stack.top();
+	}
+      if (dynamic_cast<adios2::query::QueryComposite*>(parent))
+	{
+	  adios2::query::QueryComposite* compParent = dynamic_cast<adios2::query::QueryComposite*>(parent);
+	  adios2::query::Relation prevRel = compParent->GetRelation();
+	  if ((prevRel == adios2::query::Relation::AND) and (rel == adios2::query::Relation::OR))
+	    {
+	      adios2::query::QueryComposite *node = new adios2::query::QueryComposite(rel);
+	      QueryParser::rotate(node);	      
+	    }
+	  else if ((prevRel == adios2::query::Relation::OR) and (rel == adios2::query::Relation::AND))
+	    {
+	      adios2::query::QueryBase* child = compParent->GetLastChild();
+	      adios2::query::QueryComposite *node;
+	      if (dynamic_cast<adios2::query::QueryComposite*>(child))
+		{
+		  adios2::query::QueryComposite* compChild = dynamic_cast<adios2::query::QueryComposite*>(child);
+		  adios2::query::Relation childRel = compChild->GetRelation();
+		  if (childRel != rel)
+		    {
+		      node = new adios2::query::QueryComposite(rel);
+		      node->AddNode(compChild);
+		    }
+		  else
+		    {
+		      node = compChild;
+		    }
+		  compParent->RemoveLastChild();
+		  stack.push(node);
+		}
+	      else // QueryVar
+		{
+		  adios2::query::QueryComposite *node = new adios2::query::QueryComposite(rel);
+		  node->AddNode(child);
+		  compParent->RemoveLastChild();
+		  stack.push(node);
+		}
+	    }
+	  // if prevRel == rel, ignore (next query node will be added to parent)
+	}
+      else // QueryVar
+	{
+	  adios2::query::QueryComposite *node = new adios2::query::QueryComposite(rel);
+	  node->AddNode(parent);
+	  stack.pop();
+	  stack.push(node);
+	}
     }
 
   else if (IsVarName())
@@ -196,6 +245,23 @@ void QueryParser::parse(std::string strQuery)
   if (currString.size() > 0)
     {
       QueryParser::parse(currString);
+    }
+  else // finalize stack (merge into one node)
+    {
+      while (stack.size() > 1)
+	{
+	  adios2::query::QueryBase* top = stack.top();
+	  stack.pop();
+	  if ((dynamic_cast<adios2::query::QueryComposite*>(top) != nullptr) &
+	      (dynamic_cast<adios2::query::QueryComposite*>(stack.top()) != nullptr) &
+	      (dynamic_cast<adios2::query::QueryComposite*>(top)->GetRelation() == dynamic_cast<adios2::query::QueryComposite*>(stack.top())->GetRelation()))
+	    {
+	      for (adios2::query::QueryBase* q:dynamic_cast<adios2::query::QueryComposite*>(top)->m_Nodes)
+		QueryParser::addChild(q);
+	    }
+	  else
+	    QueryParser::addChild(top);
+	}
     }
 }
 

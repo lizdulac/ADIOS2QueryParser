@@ -221,7 +221,7 @@ public:
   // MODIFIED PRINT CODE
   void Print(std::string indent)
   {
-    std::cout << indent << "QueryVar (" << m_VarName << "):" << std::endl;
+    std::cout << indent << "- QueryVar (" << m_VarName << "):" << std::endl;
     m_RangeTree.Print(indent);
   }
 
@@ -348,7 +348,7 @@ public:
     {
       //std::cout << " Composite query" << std::endl;
       // MODIFIED PRINT CODE
-      std::cout << indent << "Composite query (relation ";
+      std::cout << indent << "- Composite query (relation ";
       switch (m_Relation) {
       case adios2::query::Relation::OR:
 	std::cout << "OR";
@@ -365,7 +365,7 @@ public:
       std::cout << ")" << std::endl;
 	
         for (auto n : m_Nodes)
-	  n->Print(indent + "  ");
+	  n->Print(indent + "    ");
     }
 
     bool IsCompatible(const adios2::Box<adios2::Dims> &box)
@@ -375,10 +375,20 @@ public:
         return (m_Nodes[0])->IsCompatible(box);
     }
 
+  // MODIFICATION - new functions
+  adios2::query::Relation GetRelation() { return m_Relation; }
+  QueryBase* GetLastChild() { return m_Nodes.back(); }
+  void RemoveLastChild()
+  {
+    if (m_Nodes.size() > 0)
+      m_Nodes.pop_back();
+  }
+    std::vector<QueryBase *> m_Nodes;
+
 private:
     adios2::query::Relation m_Relation = adios2::query::Relation::AND;
 
-    std::vector<QueryBase *> m_Nodes;
+  //    std::vector<QueryBase *> m_Nodes;
 }; // class QueryComposite
 
 /*

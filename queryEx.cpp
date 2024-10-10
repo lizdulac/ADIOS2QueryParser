@@ -18,5 +18,9 @@ int main()
   std::vector<std::string> vars = {"varZero", "varOne", "varTwo", "varThree", "varFour", "varFive", "varSix", "varSeven", "varEight", "varNine", "varTen", "varEleven"};
   parseQuery(ex, &vars);
 
+  std::cout << "\n\nTest 3" << std::endl;
+  ex = " (var1 > 0) or (var1 < 10) and (var2 > 3) or (var3 <= 5) and (var4 != 2.5) or (var5 == 0)";
+  parseQuery(ex);
+
   return 0;
 }
